@@ -192,3 +192,36 @@ def test_image_quality_report_includes_scene_12_checks():
     assert "experience_label が原稿から生成されている：OK" in report
     assert "キーワード型コメント促しになっていない：OK" in report
     assert "scene_08と構図が違う：OK" in report
+
+def test_image_quality_report_includes_scene_13_checks():
+    from bookbase_automation.image_generation import build_image_quality_report
+
+    report = build_image_quality_report([])
+
+    assert "## 【scene_13 画像品質チェック】" in report
+    assert "scene_13固定役割に合っている：OK" in report
+    assert "重要ポイント③の導入だと分かる：OK" in report
+    assert "point_3_label が原稿から生成されている：OK" in report
+    assert "point_3_type が適切：OK" in report
+    assert "scene_09と構図が違う：OK" in report
+    assert "scene_12と構図が違う：OK" in report
+    assert "scene_18の実践画像と役割が混ざっていない：OK" in report
+
+
+def test_scene_13_prompt_uses_variable_key_point_three_rules():
+    from bookbase_automation.generator import _build_image_prompt_item, build_image_context
+
+    script = _valid_script()
+    context = build_image_context(script, "テスト本", [])
+    item = _build_image_prompt_item(13, context)
+
+    assert item["fixed_role"] == "重要ポイント③の導入"
+    assert item["point_3_type"] in {"practice", "solution", "mindset", "framework", "habit", "decision_rule", "final_perspective"}
+    assert len(item["exact_text_elements"]) <= 3
+    assert item["exact_text_elements"][0] == "重要ポイント③"
+    assert "Current Key Point 3" in item["final_prompt"]
+    assert "Point 3 type" in item["final_prompt"]
+    assert "Do not create a generic checklist or planner image" in item["final_prompt"]
+    assert "avoid repeating the Scene 09 or Scene 12 composition" in item["final_prompt"]
+    assert "hands checking off" not in item["final_prompt"]
+    assert "planner" not in item["composition"]
