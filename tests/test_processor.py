@@ -92,9 +92,10 @@ def test_run_processes_flat_rtfd_inputs_and_writes_scene03_prompt(tmp_path: Path
     from datetime import date
     from zipfile import ZipFile
 
-    config = AppConfig.from_root(tmp_path, allow_fallback=True, image_scene03_only=True)
+    target_date = date(2026, 6, 20)
+    config = AppConfig.from_root(tmp_path, allow_fallback=True, image_scene03_only=True, target_date=target_date)
     config.ensure_directories()
-    today = date.today().strftime("%Y%m%d")
+    today = target_date.strftime("%Y%m%d")
     current = config.input_dir / f"{today}_否定しない言い換え事典.rtfd.zip"
     related = config.input_dir / "20260616_雑談する人はなぜかうまくいく.rtfd.zip"
     with ZipFile(current, "w") as archive:
@@ -120,3 +121,52 @@ def test_run_processes_flat_rtfd_inputs_and_writes_scene03_prompt(tmp_path: Path
     assert "book_cover" in prompts
     assert not list(config.input_dir.iterdir())
     assert list(config.archive_dir.iterdir())
+
+
+def test_flat_rtfd_target_date_override_and_error_details(tmp_path: Path):
+    from datetime import date
+    from zipfile import ZipFile
+
+    config = AppConfig.from_root(tmp_path, allow_fallback=True, target_date=date(2026, 6, 20))
+    config.ensure_directories()
+    current = config.input_dir / "20260620_対象本.rtfd.zip"
+    related = config.input_dir / "20260616_関連本.rtfd.zip"
+    with ZipFile(current, "w") as archive:
+        archive.writestr("TXT.rtf", "対象本の読書メモです。")
+    with ZipFile(related, "w") as archive:
+        archive.writestr("TXT.rtf", "関連本の読書メモです。")
+    (config.input_dir / "20260620_book_cover.webp").write_bytes(b"fake cover")
+    (config.input_dir / "20260616_book_cover.webp").write_bytes(b"fake related cover")
+
+    outputs = run(config)
+
+    assert outputs[0].name.startswith("2026-06-20_対象本")
+    report = (outputs[0] / "quality_report.md").read_text(encoding="utf-8")
+    assert "今日の日付キー：20260620" in report
+
+
+def test_flat_rtfd_missing_target_date_error_lists_target_and_found_files(tmp_path: Path):
+    from datetime import date
+    from zipfile import ZipFile
+
+    config = AppConfig.from_root(tmp_path, allow_fallback=True, target_date=date(2026, 6, 20))
+    config.ensure_directories()
+    related = config.input_dir / "20260616_関連本.rtfd.zip"
+    future = config.input_dir / "20260621_未来本.rtfd.zip"
+    with ZipFile(related, "w") as archive:
+        archive.writestr("TXT.rtf", "関連本の読書メモです。")
+    with ZipFile(future, "w") as archive:
+        archive.writestr("TXT.rtf", "未来本の読書メモです。")
+
+    try:
+        run(config)
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("対象日のrtfd.zip欠落が許可されています")
+
+    assert "今日の日付の .rtfd.zip が1件必要です。" in message
+    assert "target_date: 20260620" in message
+    assert "found_rtfd_zip_files:" in message
+    assert "- input/20260616_関連本.rtfd.zip" in message
+    assert "- input/20260621_未来本.rtfd.zip" in message

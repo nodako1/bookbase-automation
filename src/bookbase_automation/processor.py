@@ -8,7 +8,7 @@ from .config import AppConfig
 from .fs_utils import move_file, move_path, output_folder_name, slugify
 from .generator import AIResponseJSONParseError, AIResponseValidationError, generate_ai_assets, generate_fallback_assets
 from .image_generation import build_image_quality_report, build_image_targets, generate_images, parse_image_scenes, render_failed_images, render_prompts_markdown
-from .input_assets import build_flat_input_report, derive_book_slug, read_rtfd_zip_text, select_flat_inputs, status_for
+from .input_assets import build_flat_input_report, derive_book_slug, find_rtfd_zip_files, format_rtfd_zip_search_error, read_rtfd_zip_text, select_flat_inputs, status_for
 from .metadata import build_metadata_quality_report
 from .quality import build_quality_report
 from .rules import load_rules
@@ -135,7 +135,7 @@ def process_one(input_path: Path, config: AppConfig) -> Path:
 
 
 def _has_flat_today_input(config: AppConfig) -> bool:
-    selection = select_flat_inputs(config.input_dir)
+    selection = select_flat_inputs(config.input_dir, run_date=config.target_date)
     return bool(selection.used_files)
 
 
@@ -162,13 +162,19 @@ def _flat_asset_checks(selection) -> list[AssetCheck]:
     ]
 
 def process_flat_inputs(config: AppConfig) -> Path:
-    selection = select_flat_inputs(config.input_dir)
+    selection = select_flat_inputs(config.input_dir, run_date=config.target_date)
     source_path = selection.current_source
     book_slug = derive_book_slug(source_path) if source_path else "input_error"
     out_dir = config.output_dir / f"{selection.run_date.isoformat()}_{book_slug}"
     try:
         if status_for(selection.current_sources) != "OK":
-            raise RuntimeError("今日の日付の .rtfd.zip が1件必要です。")
+            found_rtfd_zip_files = []
+            for path in find_rtfd_zip_files(config.input_dir):
+                try:
+                    found_rtfd_zip_files.append(path.relative_to(config.root))
+                except ValueError:
+                    found_rtfd_zip_files.append(path)
+            raise RuntimeError(format_rtfd_zip_search_error(selection, found_rtfd_zip_files))
         assert source_path is not None
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "images").mkdir(exist_ok=True)

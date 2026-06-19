@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 from .config import AppConfig
 from .processor import run
+
+
+def _parse_target_date(value: str):
+    try:
+        return datetime.strptime(value, "%Y%m%d").date()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("--target-date must be in YYYYMMDD format") from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run-images", action="store_true", help="Print final image prompts without calling the OpenAI Images API")
     parser.add_argument("--image-scene03-only", action="store_true", help="Only generate output images/scene_03.png for API smoke testing")
     parser.add_argument("--image-model", default="gpt-image-2", help="OpenAI image model for image generation/editing")
+    parser.add_argument("--target-date", type=_parse_target_date, help="Target input date in YYYYMMDD format (defaults to today in Asia/Tokyo)")
     return parser
 
 
@@ -48,6 +57,7 @@ def main() -> int:
         image_scenes=args.image_scenes,
         force_images=args.force_images,
         dry_run_images=args.dry_run_images,
+        target_date=args.target_date,
     )
     outputs = run(config)
     if not outputs:
