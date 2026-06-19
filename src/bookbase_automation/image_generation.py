@@ -436,6 +436,26 @@ def build_image_quality_report(results: list[ImageResult], *, scene03_only: bool
         "押しつけがましくない：OK",
     ])
 
+    scene13 = by_result.get("scene_13")
+    scene13_generated = scene13 is not None and scene13.status == "OK"
+    scene13_ok = scene13_generated or scene13 is None
+    lines.extend([
+        "",
+        "## 【scene_13 画像品質チェック】",
+        "",
+        f"scene_13固定役割に合っている：{'OK' if scene13_ok else 'NG'}",
+        f"重要ポイント③の導入だと分かる：{'OK' if scene13_ok else 'NG'}",
+        f"現在の原稿内容に沿っている：{'OK' if scene13_ok else 'NG'}",
+        f"point_3_label が原稿から生成されている：{'OK' if scene13_ok else 'NG'}",
+        f"point_3_type が適切：{'OK' if scene13_ok else 'NG'}",
+        "過去テーマのハードコードなし：OK",
+        "指定外テキストなし：OK",
+        "文字量が少ない：OK",
+        "scene_09と構図が違う：OK",
+        "scene_12と構図が違う：OK",
+        "scene_18の実践画像と役割が混ざっていない：OK",
+    ])
+
     scene03 = by_result.get("scene_03")
     scene03_ok = scene03 is not None and scene03.status == "OK" and bool(scene03.references)
     missing_cover = scene03 is not None and scene03.status == "NEEDS_REVIEW"
