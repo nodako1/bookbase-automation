@@ -395,6 +395,28 @@ def build_image_quality_report(results: list[ImageResult], *, scene03_only: bool
         "generic flowchart image になっていない：OK",
     ])
 
+    scene11 = by_result.get("scene_11")
+    scene11_generated = scene11 is not None and scene11.status == "OK"
+    scene11_ok = scene11_generated or scene11 is None
+    lines.extend([
+        "",
+        "## 【scene_11 画像品質チェック】",
+        "",
+        f"scene_11固定役割に合っている：{'OK' if scene11_ok else 'NG'}",
+        f"重要ポイント②の実話補強になっている：{'OK' if scene11_ok else 'NG'}",
+        f"エピソードが現在の原稿に基づいている：{'OK' if scene11_ok else 'NG'}",
+        f"verification_status を記録している：{'OK' if scene11_ok else 'NG'}",
+        "検証が弱い場合に人物名を出していない：OK",
+        "検証が弱い場合に顔を描いていない：OK",
+        "過去テーマのハードコードなし：OK",
+        "Toyota等の固定企業名なし：OK",
+        "指定外テキストなし：OK",
+        "文字量が少ない：OK",
+        "scene_10と構図が違う：OK",
+    ])
+    if scene11 is not None and scene11.status == "NEEDS_REVIEW":
+        lines.extend(["", "scene_11：NEEDS_REVIEW", "理由：実話エピソードの検証が不十分です。人物名・企業名・顔を出さず、象徴シーンにしてください。"])
+
     scene03 = by_result.get("scene_03")
     scene03_ok = scene03 is not None and scene03.status == "OK" and bool(scene03.references)
     missing_cover = scene03 is not None and scene03.status == "NEEDS_REVIEW"

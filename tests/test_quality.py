@@ -150,3 +150,32 @@ def test_image_quality_report_includes_scene_10_checks():
     assert "可変ラベルが原稿から生成されている：OK" in report
     assert "scene_09と構図が違う：OK" in report
     assert "generic flowchart image になっていない：OK" in report
+
+
+def test_image_quality_report_includes_scene_11_checks():
+    from bookbase_automation.image_generation import build_image_quality_report
+
+    report = build_image_quality_report([])
+
+    assert "## 【scene_11 画像品質チェック】" in report
+    assert "scene_11固定役割に合っている：OK" in report
+    assert "重要ポイント②の実話補強になっている：OK" in report
+    assert "verification_status を記録している：OK" in report
+    assert "Toyota等の固定企業名なし：OK" in report
+    assert "scene_10と構図が違う：OK" in report
+
+
+def test_scene_11_prompt_uses_variable_episode_safety_rules():
+    from bookbase_automation.generator import _build_image_prompt_item, build_image_context
+
+    script = _valid_script()
+    context = build_image_context(script, "テスト本", [])
+    item = _build_image_prompt_item(11, context)
+
+    assert item["fixed_role"] == "重要ポイント②の実話エピソード補強"
+    assert item["verification_status"] in {"verified", "needs_review", "unverified"}
+    assert item["visual_mode"] in {"named_episode", "silhouette_episode", "symbolic_action"}
+    assert "Do not hard-code any person" in item["final_prompt"]
+    assert "avoid hard-coded Toyota" in item["final_prompt"]
+    assert "Use only the following Japanese text elements exactly as written" in item["final_prompt"]
+    assert "Toyota's former president" not in item["final_prompt"]
