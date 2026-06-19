@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from zipfile import ZipFile, BadZipFile
 
 from .fs_utils import slugify
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 RTFD_ZIP_SUFFIX = ".rtfd.zip"
+TOKYO_TIMEZONE = ZoneInfo("Asia/Tokyo")
 
 
 @dataclass(frozen=True)
@@ -72,8 +74,12 @@ def _is_author(path: Path) -> bool:
     return path.suffix.lower() in IMAGE_EXTENSIONS and "_author" in path.stem.lower()
 
 
+def today_in_tokyo() -> date:
+    return datetime.now(TOKYO_TIMEZONE).date()
+
+
 def select_flat_inputs(input_dir: Path, *, run_date: date | None = None) -> FlatInputSelection:
-    run_date = run_date or date.today()
+    run_date = run_date or today_in_tokyo()
     date_key = run_date.strftime("%Y%m%d")
     files = [path for path in input_dir.iterdir() if path.is_file()]
     current_sources: list[Path] = []
@@ -145,6 +151,23 @@ def read_rtfd_zip_text(path: Path) -> str:
     except BadZipFile:
         return path.read_text(encoding="utf-8", errors="ignore")
     return f"{path.name} からテキストを抽出できませんでした。ファイル内容を確認してください。"
+
+
+def format_rtfd_zip_search_error(selection: FlatInputSelection, found_files: list[Path]) -> str:
+    lines = [
+        "今日の日付の .rtfd.zip が1件必要です。",
+        f"target_date: {selection.date_key}",
+        "found_rtfd_zip_files:",
+    ]
+    if found_files:
+        lines.extend(f"- {path.as_posix()}" for path in found_files)
+    else:
+        lines.append("- (none)")
+    return "\n".join(lines)
+
+
+def find_rtfd_zip_files(input_dir: Path) -> list[Path]:
+    return sorted(path for path in input_dir.iterdir() if path.is_file() and _is_rtfd_zip(path))
 
 
 def build_flat_input_report(selection: FlatInputSelection) -> str:

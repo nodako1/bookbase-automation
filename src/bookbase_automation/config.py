@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 
@@ -23,6 +24,7 @@ class AppConfig:
     image_scenes: str = "1-20"
     force_images: bool = False
     dry_run_images: bool = False
+    target_date: date | None = None
 
     @classmethod
     def from_root(
@@ -39,6 +41,7 @@ class AppConfig:
         image_scenes: str = "1-20",
         force_images: bool = False,
         dry_run_images: bool = False,
+        target_date: date | None = None,
     ) -> "AppConfig":
         root = root.resolve()
         return cls(
@@ -59,6 +62,7 @@ class AppConfig:
             image_scenes=image_scenes,
             force_images=force_images,
             dry_run_images=dry_run_images,
+            target_date=target_date,
         )
 
     def ensure_directories(self) -> None:
