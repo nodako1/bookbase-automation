@@ -147,17 +147,30 @@ def read_rtfd_zip_text(path: Path) -> str:
     return f"{path.name} からテキストを抽出できませんでした。ファイル内容を確認してください。"
 
 
+def _names(files: list[Path]) -> str:
+    return ", ".join(path.name for path in files) if files else "なし"
+
+
 def build_flat_input_report(selection: FlatInputSelection) -> str:
     lines = [
         "",
-        "## 【入力ファイル判定】",
+        "## 【inputファイル判定】",
         "",
-        f"- 実行日：{selection.run_date.isoformat()}",
-        f"- 今日の日付キー：{selection.date_key}",
-        f"- 今回の原稿材料：{status_for(selection.current_sources)}",
-        f"- 今回のブックカバー：{status_for(selection.current_book_covers)}",
-        f"- 今回の著者画像：{status_for(selection.current_authors, required=False)}",
-        f"- scene_19用原稿材料：{status_for(selection.related_sources)}",
-        f"- scene_19用ブックカバー：{status_for(selection.related_book_covers)}",
+        f"実行日：{selection.run_date.isoformat()}",
+        f"今日の日付キー：{selection.date_key}",
+        "",
+        f"今回の原稿材料：{_names(selection.current_sources)}",
+        f"今回のブックカバー：{_names(selection.current_book_covers)}",
+        f"今回の著者画像：{_names(selection.current_authors)}",
+        f"scene_19用原稿材料：{_names(selection.related_sources)}",
+        f"scene_19用ブックカバー：{_names(selection.related_book_covers)}",
+        "",
+        "## 【判定結果】",
+        "",
+        f"今回の原稿材料：{status_for(selection.current_sources)}",
+        f"今回のブックカバー：{status_for(selection.current_book_covers)}",
+        f"今回の著者画像：{status_for(selection.current_authors, required=False)}",
+        f"scene_19用原稿材料：{status_for(selection.related_sources)}",
+        f"scene_19用ブックカバー：{status_for(selection.related_book_covers)}",
     ]
     return "\n".join(lines) + "\n"

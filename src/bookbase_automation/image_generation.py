@@ -151,11 +151,12 @@ def _generate_one(client: Any, target: ImageTarget, *, model: str, size: str) ->
 
 
 def generate_images(targets: list[ImageTarget], *, model: str = "gpt-image-1", size: str = "1536x1024") -> list[ImageResult]:
-    from openai import OpenAI
-
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY が設定されていません。")
+
+    from openai import OpenAI
+
     client = OpenAI(api_key=api_key)
     results: list[ImageResult] = []
     for target in targets:
