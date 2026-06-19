@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 from dataclasses import dataclass
@@ -69,7 +70,7 @@ def _scene_prompt(scene: int, source_prompt: str, selection: FlatInputSelection)
         refs.append(selection.current_author)
     if scene == 19 and selection.related_book_cover:
         refs.append(selection.related_book_cover)
-    if scene == 2 and "Use only the following Japanese text elements exactly as written" in source_prompt:
+    if scene in {2, 3} and "Use only the following Japanese text elements exactly as written" in source_prompt:
         prompt = source_prompt
     else:
         prompt = f"{_common_style()}. Scene {scene:02d}: {directives.get(scene, 'Follow the scene role and keep one strong visual message.')}. Base prompt: {source_prompt}"
@@ -153,6 +154,57 @@ def _generate_one(client: Any, target: ImageTarget, *, model: str, size: str) ->
     return base64.b64decode(_extract_b64(response))
 
 
+def _crop_to_16_9(image: Any) -> Any:
+    width, height = image.size
+    target_ratio = 16 / 9
+    ratio = width / height
+    if abs(ratio - target_ratio) < 0.01:
+        return image
+    if ratio > target_ratio:
+        new_width = int(height * target_ratio)
+        left = (width - new_width) // 2
+        return image.crop((left, 0, left + new_width, height))
+    new_height = int(width / target_ratio)
+    top = (height - new_height) // 2
+    return image.crop((0, top, width, top + new_height))
+
+
+def composite_scene03_book_cover(background_bytes: bytes, cover_path: Path, *, cover_width_ratio: float = 0.32) -> bytes:
+    """Composite the real Scene 03 book cover onto an AI-generated background."""
+    from PIL import Image, ImageFilter
+
+    background = Image.open(io.BytesIO(background_bytes)).convert("RGBA")
+    background = _crop_to_16_9(background)
+    canvas_width, canvas_height = background.size
+
+    cover = Image.open(cover_path).convert("RGBA")
+    cover_width = int(canvas_width * cover_width_ratio)
+    cover_height = int(cover_width * cover.height / cover.width)
+    max_height = int(canvas_height * 0.82)
+    if cover_height > max_height:
+        cover_height = max_height
+        cover_width = int(cover_height * cover.width / cover.height)
+    cover = cover.resize((cover_width, cover_height), Image.Resampling.LANCZOS)
+
+    border = max(6, canvas_width // 180)
+    framed = Image.new("RGBA", (cover_width + border * 2, cover_height + border * 2), (255, 252, 244, 255))
+    framed.alpha_composite(cover, (border, border))
+
+    shadow_offset = max(10, canvas_width // 90)
+    shadow_blur = max(16, canvas_width // 70)
+    shadow = Image.new("RGBA", framed.size, (0, 0, 0, 95))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(shadow_blur))
+
+    x = int(canvas_width * 0.13)
+    y = (canvas_height - framed.height) // 2
+    background.alpha_composite(shadow, (x + shadow_offset, y + shadow_offset))
+    background.alpha_composite(framed, (x, y))
+
+    output = io.BytesIO()
+    background.convert("RGB").save(output, format="PNG")
+    return output.getvalue()
+
+
 def generate_images(targets: list[ImageTarget], *, model: str = "gpt-image-1", size: str = "1536x1024") -> list[ImageResult]:
     from openai import OpenAI
 
@@ -164,7 +216,16 @@ def generate_images(targets: list[ImageTarget], *, model: str = "gpt-image-1", s
     for target in targets:
         target.output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            image_bytes = _generate_one(client, target, model=model, size=size)
+            if target.scene == 3:
+                cover_path = target.references[0] if target.references else None
+                if cover_path is None or not cover_path.exists():
+                    results.append(ImageResult(target.key, target.filename, "NEEDS_REVIEW", target.prompt, tuple(str(p) for p in target.references), "今回の本のブックカバーが見つかりません"))
+                    continue
+            generation_target = ImageTarget(target.key, target.filename, target.output_dir, target.prompt, (), target.scene) if target.scene == 3 else target
+            image_bytes = _generate_one(client, generation_target, model=model, size=size)
+            if target.scene == 3:
+                assert cover_path is not None
+                image_bytes = composite_scene03_book_cover(image_bytes, cover_path)
             (target.output_dir / target.filename).write_bytes(image_bytes)
             results.append(ImageResult(target.key, target.filename, "OK", target.prompt, tuple(str(p) for p in target.references)))
         except Exception as exc:  # keep processing other images
@@ -196,6 +257,7 @@ def render_failed_images(results: list[ImageResult]) -> str:
 
 def build_image_quality_report(results: list[ImageResult], *, scene03_only: bool = False) -> str:
     by_key = {result.key: result.status for result in results}
+    by_result = {result.key: result for result in results}
     lines = ["", "## 【画像生成チェック】", ""]
     scenes = [3] if scene03_only else list(range(1, 21))
     for scene in scenes:
@@ -217,4 +279,25 @@ def build_image_quality_report(results: list[ImageResult], *, scene03_only: bool
             "scene_01と構図が違う：OK",
             "サムネイルっぽくなりすぎていない：OK",
         ])
+    scene03 = by_result.get("scene_03")
+    scene03_ok = scene03 is not None and scene03.status == "OK" and bool(scene03.references)
+    missing_cover = scene03 is not None and scene03.status == "NEEDS_REVIEW"
+    lines.extend([
+        "",
+        "## 【scene_03 画像品質チェック】",
+        "",
+        f"ブックカバー参照画像あり：{'OK' if scene03_ok else 'NG'}",
+        f"実ブックカバーを使用：{'OK' if scene03_ok else 'NG'}",
+        f"AIが表紙を再生成していない：{'OK' if scene03_ok else 'NG'}",
+        f"ブックカバーの文字が読める：{'OK' if scene03_ok else 'NG'}",
+        f"ブックカバーが歪んでいない：{'OK' if scene03_ok else 'NG'}",
+        f"表紙の上に文字を重ねていない：{'OK' if scene03_ok else 'NG'}",
+        f"今回の本紹介として機能している：{'OK' if scene03_ok else 'NG'}",
+        f"動画全体の結論が短く伝わる：{'OK' if scene03_ok else 'NG'}",
+        f"文字量が少ない：{'OK' if scene03_ok else 'NG'}",
+        f"Book Baseらしい高級感：{'OK' if scene03_ok else 'NG'}",
+        f"scene_02と構図が違う：{'OK' if scene03_ok else 'NG'}",
+    ])
+    if missing_cover:
+        lines.extend(["", "scene_03：NEEDS_REVIEW", "理由：今回の本のブックカバーが見つかりません"])
     return "\n".join(lines) + "\n"

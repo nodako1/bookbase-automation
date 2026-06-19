@@ -3,7 +3,7 @@ name = "bookbase-automation"
 version = "0.1.0"
 description = "Book Base YouTube production helper automation"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["Pillow>=10.0.0"]
 
 [project.optional-dependencies]
 ai = ["openai>=1.0.0"]

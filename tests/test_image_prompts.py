@@ -1,6 +1,10 @@
 import json
+from datetime import date
+from pathlib import Path
 
 from bookbase_automation.generator import generate_fallback_assets
+from bookbase_automation.image_generation import build_image_targets, composite_scene03_book_cover
+from bookbase_automation.input_assets import FlatInputSelection
 from bookbase_automation.rules import load_rules
 
 
@@ -44,3 +48,55 @@ def test_scene_02_fallback_prompt_is_structured_and_text_limited():
     assert "Use only the following Japanese text elements exactly as written" in scene_02["final_prompt"]
     assert "Correct answer B" not in scene_02["final_prompt"]
     assert "avoid repeating the Scene 01 composition" in scene_02["final_prompt"]
+
+
+def test_scene_03_fallback_prompt_requires_real_cover_composite():
+    assets = generate_fallback_assets("本のメモ", "否定しない言い換え事典")
+    prompts = json.loads(assets.image_prompts)
+    scene_03 = prompts[2]
+
+    assert scene_03["scene"] == 3
+    assert scene_03["reference_image_required"] is True
+    assert scene_03["exact_text_elements"] == ["今回の一冊", "言い方で関係は変わる"]
+    assert scene_03["post_process"]["composite_real_book_cover"] is True
+    assert "do not draw or recreate the book cover" in scene_03["final_prompt"]
+    assert "Do not add a fake book cover" in scene_03["final_prompt"]
+
+
+def test_scene_03_target_keeps_cover_reference_but_prompt_generates_background(tmp_path: Path):
+    cover = tmp_path / "20260619_book_cover.webp"
+    cover.write_bytes(b"cover")
+    selection = FlatInputSelection(
+        run_date=date(2026, 6, 19),
+        date_key="20260619",
+        current_sources=[],
+        current_book_covers=[cover],
+        current_authors=[],
+        related_sources=[],
+        related_book_covers=[],
+    )
+    assets = generate_fallback_assets("本のメモ", "否定しない言い換え事典")
+
+    [target] = build_image_targets(tmp_path / "output", assets.image_prompts, selection, scene03_only=True)
+
+    assert target.references == (cover,)
+    assert "actual book cover will be composited later" in target.prompt
+    assert "Leave a clean, prominent empty space on the left side" in target.prompt
+
+
+def test_composite_scene_03_book_cover_preserves_16_9_output(tmp_path: Path):
+    import pytest
+
+    Image = pytest.importorskip("PIL.Image")
+
+    background = tmp_path / "background.png"
+    cover = tmp_path / "cover.webp"
+    Image.new("RGB", (1536, 1024), (240, 235, 225)).save(background)
+    Image.new("RGB", (600, 900), (20, 120, 160)).save(cover)
+
+    image_bytes = composite_scene03_book_cover(background.read_bytes(), cover)
+    output = tmp_path / "scene_03.png"
+    output.write_bytes(image_bytes)
+    rendered = Image.open(output)
+
+    assert rendered.size == (1536, 864)

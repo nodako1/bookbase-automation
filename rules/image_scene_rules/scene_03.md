@@ -2,40 +2,100 @@
 
 ## このシーンの役割
 
-本紹介と動画全体の結論を伝える。固定文「今回紹介するのは、〇〇さんの『〇〇』こちらの本になります。」に対応する。
+今回紹介する本を視覚的に見せ、視聴者に「この本を紹介する動画なんだ」と理解させる。動画全体の結論を短く伝え、scene_04 の著者紹介・重要ポイント提示へ自然につなげる。
 
-## 画像の目的
+scene_03 はサムネイルではない。煽りすぎず、上品に本の価値を伝える動画内画像にする。
 
-今回扱う本と動画全体の結論を一目で伝え、この本から何が学べるかを理解させる。
+## 最重要ルール：ブックカバーは再生成しない
 
-## 所属ブロック・重要ポイント
+scene_03 では、今回紹介する本の実際のブックカバー画像を必ず使う。
 
-- 所属ブロック：冒頭導入・クイズ・本紹介・重要ポイント提示
-- 重要ポイント番号：該当なし
-- 20シーン全体の流れの中での位置づけ：各シーン単体ではなく、前後シーンとの接続を踏まえて画像化する。
+- ブックカバーは必ず使用する。
+- ブックカバーを AI に描き直させない。
+- 架空の表紙を作らない。
+- 表紙の文字を崩さない。
+- 表紙を歪ませない。
+- 表紙を切りすぎない。
+- 表紙が読めるサイズで表示する。
 
-## 向いている表現
+## 推奨実装：AI生成背景 + 実ブックカバー合成
 
-ブックカバー、本を主役にした構図、本と会社員の課題がつながる表現、学びが広がる表現
+画像生成 AI だけで完結させず、次の 2 段階にする。
 
-## 文字の方向性
+1. OpenAI API で、ブックカバーを置く余白を確保した 16:9 の背景画像を生成する。
+2. Python の Pillow などで、実際のブックカバーを背景画像へ重ねる。
 
-本の結論を短く。例：「今日の結論」「この本の要点」「仕事に効く学び」
+背景生成段階では、AI にブックカバーを描かせない。背景には、高級感のあるデスク、淡いクリーム背景、ティールとゴールドのアクセント、ノート、ペン、コーヒーカップなどの上品な仕事道具、Book Base ロゴ、本のテーマに合う控えめなモチーフを入れる。
 
-## 構図の方向性
+## ブックカバー合成ルール
 
-本を中心に置き、会社員の日常や仕事道具と組み合わせる。データ導入から本紹介へ切り替わったことが分かる構図。
+- 16:9 画像上に配置する。
+- カバーの縦横比を維持する。
+- カバー幅は画像全体の 25〜38% 程度にする。
+- 左側または中央左に大きく配置する。
+- 上下左右に十分な余白を取る。
+- 薄い影を付ける。
+- 必要なら白または薄いクリーム色の縁取りを付ける。
+- 表紙が背景に埋もれないようにする。
+- 表紙の上に余計な文字を重ねない。
 
-## 避けること
+## 推奨構図
 
-本が目立たない、抽象イメージだけ、動画全体の結論が見えない、シーン2と同じ雰囲気、文字の詰め込み。
+### 構図A：左カバー・右メッセージ型
 
-## 共通指定
+左側に実際のブックカバーを大きく配置し、右側に短い結論メッセージを置く。背景は上品なデスク、ノート、ペン、淡い光にする。
 
-- アスペクト比16:9。
-- 水彩画風で、高級感のある落ち着いたビジネス書チャンネル向けの雰囲気にする。
-- 文字数は少なく簡潔にし、原稿本文をそのまま長文で載せない。
-- 1画像1メッセージにする。
-- 前後画像と構図を被らせない。
-- Book Baseロゴを小さく自然に配置する。
-- サムネイルのように煽りすぎず、ナレーション理解を助ける補助ビジュアルにする。
+### 構図B：中央カバー・周辺モチーフ型
+
+中央に実際のブックカバーを置き、周囲に会話、言い換え、信頼を示す控えめなアイコンを配置する。背景は水彩紙の質感、ゴールドの細い装飾にする。
+
+### 構図C：本を手に取る導入型
+
+左中央に実際のブックカバー、右側に読書メモや会話カードを置く。背景は落ち着いた書斎・仕事机にする。
+
+scene_02 が人物・答えカード中心の場合、scene_03 では人物を大きく出しすぎず、本そのものを主役にする。
+
+## 画像内テキストルール
+
+ブックカバー自体にタイトルがあるため、画像側で長い文字を追加しない。
+
+使用してよいテキストは次の 2 つだけにする。
+
+- 今回の一冊
+- 言い方で関係は変わる
+
+禁止事項：
+
+- 本のタイトルを長く重複表示する。
+- 原稿本文を入れる。
+- 3 行以上の説明文を入れる。
+- キャッチコピーを詰め込む。
+- 表紙の上に文字を重ねる。
+
+## 背景生成用プロンプト
+
+```text
+Create a 16:9 landscape video-insert background image for Book Base, a Japanese business book YouTube channel. Use a refined watercolor illustration style with a premium, calm, elegant atmosphere. Use a soft cream-white and beige background with teal and subtle gold accents. Include a small natural Book Base logo placed unobtrusively.
+
+This is Scene 03. Its role is to introduce the current book and give viewers the overall conclusion of the video. The actual book cover will be composited later from the provided reference image, so do not draw or recreate the book cover. Leave a clean, prominent empty space on the left side or center-left for the real book cover to be placed. The space should feel intentional, like a premium book presentation layout.
+
+Visual concept:
+A calm premium desk setup for a Japanese business book introduction. Include subtle office items such as a notebook, pen, soft coffee cup, small plant, or paper cards. Use motifs related to communication and wording, such as gentle speech bubble icons, small note cards, or soft connecting lines. Keep the design elegant and uncluttered.
+
+Use only the following Japanese text elements exactly as written. Do not add any other Japanese or English text:
+1. 今回の一冊
+2. 言い方で関係は変わる
+
+Do not place long script text. Do not add a fake book cover. Do not write the book title yourself. Do not distort or invent cover artwork. Keep enough whitespace for the real book cover. Make the image calm, sophisticated, and suitable for a Japanese business book summary video.
+```
+
+## 失敗時の扱い
+
+今回紹介する本のブックカバーが存在しない場合は、scene_03 画像を成功扱いにしない。
+
+```text
+scene_03：NEEDS_REVIEW
+理由：今回の本のブックカバーが見つかりません
+```
+
+ブックカバーがない状態で、AI に架空の表紙を作らせることは禁止。
